@@ -1,0 +1,8 @@
+# Build artifacts
+.build/
+build/
+*.xcodeproj
+DerivedData/
+
+# macOS
+.DS_Store
