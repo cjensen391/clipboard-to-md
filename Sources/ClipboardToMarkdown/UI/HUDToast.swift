@@ -41,6 +41,9 @@ final class HUDToast {
 
     static let shared = HUDToast()
 
+    /// Fixed content width so `fittingSize` is deterministic.
+    fileprivate static let toastWidth: CGFloat = 300
+
     private var panel: NSPanel?
     private var dismissTask: Task<Void, Never>?
 
@@ -70,9 +73,17 @@ final class HUDToast {
             }
         )
 
+        // Give the content a determinate width so SwiftUI lays out to a known
+        // column; then measure the height. Reading `fittingSize` on a hosting
+        // view that isn't in a window yet can otherwise come back (0,0), which
+        // parks a zero-size panel at the corner and lets the content spill to an
+        // unpredictable spot on screen.
         let hosting = NSHostingView(rootView: root)
-        hosting.layout()
-        let size = hosting.fittingSize
+        hosting.frame = NSRect(x: 0, y: 0, width: Self.toastWidth, height: 200)
+        hosting.layoutSubtreeIfNeeded()
+        var size = hosting.fittingSize
+        if size.width < 1 { size.width = Self.toastWidth }
+        if size.height < 1 { size.height = 64 }
 
         let panel = existingPanel(size: size)
         panel.contentView = hosting
@@ -112,13 +123,16 @@ final class HUDToast {
         return panel
     }
 
-    /// Top-right of the screen containing the menu bar, just under it.
+    /// Top-right of the screen containing the menu bar, just under it. macOS
+    /// screen coordinates have a bottom-left origin, so "top" is `maxY`.
     private func position(_ panel: NSPanel, size: NSSize) {
         let screen = NSScreen.main ?? NSScreen.screens.first
         guard let frame = screen?.visibleFrame else { return }
         let margin: CGFloat = 12
-        let x = frame.maxX - size.width - margin
-        let y = frame.maxY - size.height - margin
+        // Clamp inside the visible frame so the toast is always fully on-screen,
+        // even if the computed size is larger than expected.
+        let x = max(frame.minX + margin, frame.maxX - size.width - margin)
+        let y = max(frame.minY + margin, frame.maxY - size.height - margin)
         panel.setFrame(NSRect(x: x, y: y, width: size.width, height: size.height), display: true)
     }
 }
@@ -158,7 +172,7 @@ private struct ToastView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .frame(minWidth: 220, maxWidth: 340, alignment: .leading)
+        .frame(width: HUDToast.toastWidth, alignment: .leading)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)

@@ -33,6 +33,10 @@ struct LastSaved {
 @MainActor
 final class AppModel: ObservableObject {
 
+    /// The live instance, so the app delegate can route a "reopen" event (an
+    /// external `open` from Spotlight / a launcher) to the save action.
+    static weak var shared: AppModel?
+
     @Published private(set) var iconState: IconState = .idle
     @Published private(set) var lastSaved: LastSaved?
 
@@ -53,12 +57,14 @@ final class AppModel: ObservableObject {
         self.prefs = prefs
         self.engine = TurndownEngine()
         self.conversion = ConversionService(engine: engine)
+        AppModel.shared = self
     }
 
     /// Warm the WebView and register the global hotkey. Call once at launch.
     func start() {
         conversion.warmUp()
         notifier.requestAuthorizationIfNeeded()
+        prefs.enableLaunchAtLoginOnFirstRun()
         KeyboardShortcuts.onKeyUp(for: .saveClipboardAsMarkdown) { [weak self] in
             self?.saveClipboard()
         }
@@ -87,11 +93,20 @@ final class AppModel: ObservableObject {
     /// keypress is always acknowledged, then converts and saves.
     func saveClipboard() {
         flashWorking()
-        Task { await self.performSave() }
+        Task { await self.performSave(reader.read()) }
     }
 
-    private func performSave() async {
-        let payload = reader.read()
+    /// The macOS Service entry point — save the selection handed to us on the
+    /// service pasteboard, so "Save Clipboard as Markdown" works from the
+    /// right-click / Services menu of any app. Read the payload synchronously:
+    /// the service pasteboard isn't guaranteed to outlive this call.
+    func saveSelection(from pasteboard: NSPasteboard) {
+        flashWorking()
+        let payload = reader.read(pasteboard)
+        Task { await self.performSave(payload) }
+    }
+
+    private func performSave(_ payload: ClipboardPayload) async {
         if payload.isEmpty {
             reportEmpty()
             return

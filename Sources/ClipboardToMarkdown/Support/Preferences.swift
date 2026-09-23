@@ -28,6 +28,7 @@ final class Preferences: ObservableObject {
         static let lastFolderBookmark = "lastFolderBookmark"
         static let playSound = "playSound"
         static let showConfirmation = "showConfirmation"
+        static let didSetInitialLoginItem = "didSetInitialLoginItem"
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -93,6 +94,18 @@ final class Preferences: ObservableObject {
     }
 
     // MARK: - Launch at login
+
+    /// Turn on "launch at login" the first time the app runs, so it's always
+    /// available (hotkey + Service + menu bar) after a reboot without the user
+    /// having to opt in. One-time only: if they later disable it in Settings we
+    /// never flip it back on.
+    func enableLaunchAtLoginOnFirstRun() {
+        guard !defaults.bool(forKey: Key.didSetInitialLoginItem) else { return }
+        defaults.set(true, forKey: Key.didSetInitialLoginItem)
+        if SMAppService.mainApp.status != .enabled {
+            try? SMAppService.mainApp.register()
+        }
+    }
 
     var launchAtLogin: Bool {
         get { SMAppService.mainApp.status == .enabled }

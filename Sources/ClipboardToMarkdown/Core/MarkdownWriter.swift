@@ -57,7 +57,10 @@ struct MarkdownWriter {
             panel.cancel(nil)
         })
 
+        // Run from an accessory app with no host window, the panel otherwise
+        // opens at the screen origin (bottom-left). Center it before it's shown.
         panel.makeKeyAndOrderFront(nil)
+        panel.center()
         let response = panel.runModal()
 
         if copyInsteadChosen {

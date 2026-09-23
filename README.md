@@ -59,6 +59,24 @@ To build without installing:
 The menu also offers **Copy as Markdown** (no file, just puts the Markdown back
 on your clipboard) and a **Last saved** row with **Reveal in Finder**.
 
+### Launch from Spotlight (⌘Space)
+
+Prefer Spotlight to a hotkey? Build the companion launcher:
+
+```sh
+./make-launcher.sh                       # → "Save Clipboard as Markdown.app" in /Applications
+./make-launcher.sh "Grab Markdown"       # …or give it your own (shorter) name
+```
+
+It's a tiny app that tells the running menu-bar app to convert-and-save. Trigger
+it with **⌘Space → type a few letters of its name → Return**. The app's name is
+whatever you pass (or rename the `.app` in Finder), so pick something that types
+fast. First run shows a one-time "wants to control Clipboard to Markdown"
+permission prompt — click OK.
+
+Under the hood the menu-bar app treats a re-open (an external `open`, whether
+from this launcher, Spotlight, Automator, or Shortcuts) as "save now."
+
 Open **Settings…** (⌘,) to change the hotkey, choose ask-vs-fixed-folder saving,
 toggle the success sound / confirmation popup, and enable **Launch at login**.
 

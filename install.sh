@@ -9,10 +9,9 @@ APP_NAME="Clipboard to Markdown"
 APP_DIR="build/$APP_NAME.app"
 DEST="/Applications/$APP_NAME.app"
 
-if [[ ! -d "$APP_DIR" ]]; then
-	echo "==> No build found — building first…"
-	./build-app.sh
-fi
+# Always rebuild the bundle so an install never ships a stale binary.
+echo "==> Building app bundle…"
+./build-app.sh
 
 echo "==> Installing to $DEST"
 if [[ -d "$DEST" ]]; then
