@@ -21,6 +21,7 @@ final class ConversionService {
     private let rtfConverter = RTFConverter()
     private let imageSaver = ImageSaver()
     private let filenameGenerator = FilenameGenerator()
+    private let ocr = OCRService()
 
     init(engine: TurndownEngine) {
         self.engine = engine
@@ -68,10 +69,20 @@ final class ConversionService {
     }
 
     private func convertImage(_ image: NSImage) throws -> MarkdownResult {
-        let name = filenameGenerator.suggestedName(for: "")
+        // Recognize any text in the image (macOS Vision OCR). When text is
+        // found, name the file after it and append the text below the embed;
+        // otherwise fall back to a timestamped name and a bare image embed.
+        let recognized = ocr.recognizeText(in: image)
+
+        let name = filenameGenerator.suggestedName(for: recognized ?? "")
         let imageName = "\(name).png"
         let png = try imageSaver.pngData(from: image)
-        let markdown = "![](\(imageName))\n"
+
+        var markdown = "![](\(imageName))\n"
+        if let recognized, !recognized.isEmpty {
+            markdown += "\n\(recognized)\n"
+        }
+
         return MarkdownResult(
             markdown: markdown,
             suggestedName: name,

@@ -1,5 +1,60 @@
 import XCTest
+import AppKit
 @testable import ClipboardToMarkdown
+
+/// Renders a string as black text on a white background into an `NSImage`,
+/// large enough for Vision to recognize reliably.
+func renderTextImage(_ text: String, size: NSSize = NSSize(width: 600, height: 160)) -> NSImage {
+    let image = NSImage(size: size)
+    image.lockFocus()
+    NSColor.white.setFill()
+    NSRect(origin: .zero, size: size).fill()
+    let attrs: [NSAttributedString.Key: Any] = [
+        .font: NSFont.systemFont(ofSize: 48),
+        .foregroundColor: NSColor.black
+    ]
+    (text as NSString).draw(at: NSPoint(x: 20, y: 50), withAttributes: attrs)
+    image.unlockFocus()
+    return image
+}
+
+final class OCRServiceTests: XCTestCase {
+
+    func testRecognizesRenderedText() throws {
+        let image = renderTextImage("Hello Vision")
+        let result = OCRService().recognizeText(in: image)
+        let recognized = try XCTUnwrap(result, "OCR returned nil for a clear text image")
+        // Vision may vary spacing/case slightly; assert on the distinctive tokens.
+        XCTAssertTrue(recognized.contains("Hello"), "expected 'Hello', got: \(recognized)")
+        XCTAssertTrue(recognized.contains("Vision"), "expected 'Vision', got: \(recognized)")
+    }
+
+    func testReturnsNilForBlankImage() {
+        let blank = NSImage(size: NSSize(width: 200, height: 200))
+        blank.lockFocus()
+        NSColor.white.setFill()
+        NSRect(x: 0, y: 0, width: 200, height: 200).fill()
+        blank.unlockFocus()
+        XCTAssertNil(OCRService().recognizeText(in: blank), "blank image should yield no text")
+    }
+}
+
+final class ImageConversionTests: XCTestCase {
+
+    @MainActor
+    func testImageWithTextEmbedsRecognizedText() async throws {
+        let service = ConversionService(engine: TurndownEngine())
+        let image = renderTextImage("Meeting Notes")
+        let result = try await service.convert(.image(image))
+
+        XCTAssertTrue(result.markdown.contains("!["), "expected an image embed, got:\n\(result.markdown)")
+        XCTAssertTrue(result.markdown.contains("Meeting"), "expected recognized text in markdown, got:\n\(result.markdown)")
+        XCTAssertEqual(result.sidecars.count, 1, "expected a single PNG sidecar")
+        XCTAssertTrue(result.sidecars.first?.name.hasSuffix(".png") ?? false)
+        // Filename is derived from the recognized text, not a timestamp.
+        XCTAssertFalse(result.suggestedName.hasPrefix("Clipboard-"), "name should come from OCR text, got \(result.suggestedName)")
+    }
+}
 
 final class TurndownEngineTests: XCTestCase {
 
