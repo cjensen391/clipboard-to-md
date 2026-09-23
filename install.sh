@@ -1,16 +1,29 @@
 #!/bin/bash
-# Build clip2md (release) and install it to ~/.local/bin.
+# Builds (if needed) and installs Clipboard to Markdown.app into /Applications,
+# then launches it. Spotlight will find it as "Clipboard to Markdown".
 set -euo pipefail
 
 cd "$(dirname "$0")"
-swift build -c release
 
-dest="${1:-$HOME/.local/bin}"
-mkdir -p "$dest"
-cp -f .build/release/clip2md "$dest/clip2md"
-echo "Installed clip2md -> $dest/clip2md"
+APP_NAME="Clipboard to Markdown"
+APP_DIR="build/$APP_NAME.app"
+DEST="/Applications/$APP_NAME.app"
 
-case ":$PATH:" in
-  *":$dest:"*) ;;
-  *) echo "Note: $dest is not on your PATH." ;;
-esac
+# Always rebuild the bundle so an install never ships a stale binary.
+echo "==> Building app bundle…"
+./build-app.sh
+
+echo "==> Installing to $DEST"
+if [[ -d "$DEST" ]]; then
+	# Quit a running copy so the replace doesn't fail on a busy binary.
+	osascript -e 'quit app "Clipboard to Markdown"' >/dev/null 2>&1 || true
+	sleep 1
+	rm -rf "$DEST"
+fi
+cp -R "$APP_DIR" "$DEST"
+
+echo "==> Launching…"
+open "$DEST"
+
+echo "==> Installed. Look for the document icon in your menu bar."
+echo "    Default hotkey: ⌃⌥⌘M (Control-Option-Command-M)"

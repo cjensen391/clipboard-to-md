@@ -1,10 +1,29 @@
-// swift-tools-version:5.9
+// swift-tools-version: 6.0
 import PackageDescription
 
 let package = Package(
-    name: "clip2md",
-    platforms: [.macOS(.v12)],
+    name: "ClipboardToMarkdown",
+    platforms: [
+        .macOS("14.0")
+    ],
+    dependencies: [
+        .package(
+            url: "https://github.com/sindresorhus/KeyboardShortcuts",
+            from: "2.0.0"
+        )
+    ],
     targets: [
-        .executableTarget(name: "clip2md", path: "Sources/clip2md")
+        .executableTarget(
+            name: "ClipboardToMarkdown",
+            dependencies: [
+                .product(name: "KeyboardShortcuts", package: "KeyboardShortcuts")
+            ],
+            path: "Sources/ClipboardToMarkdown"
+        ),
+        .testTarget(
+            name: "ClipboardToMarkdownTests",
+            dependencies: ["ClipboardToMarkdown"],
+            path: "Tests/ClipboardToMarkdownTests"
+        )
     ]
 )
